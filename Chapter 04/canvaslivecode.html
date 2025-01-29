@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+
+<body>
+    <canvas id="myCanvas"></canvas>
+    <textarea id="codearea" width="" style="width: 100%; height: 250px">
+const WIDTH = 500;  
+const HEIGHT = 250;
+
+export const imagebuffer: StaticArray<u8> = new StaticArray<u8>(WIDTH * HEIGHT * 4);
+
+export function draw(time: i32): void {
+    let index = 0;
+    for (let y: i32 = 0; y < HEIGHT; y++) {
+        for (let x: i32 = 0; x < WIDTH; x++) {
+            const r: u8 = (Math.sin(Math.PI * 2 * ((time+x*8) / 1000.0)) * 127 + 128) as u8;
+            const g: u8 = (Math.sin(Math.PI * 2 * ((time-y*4) / 1000.0)) * 127 + 128) as u8;
+            const b: u8 = (Math.cos(Math.PI * 2 * ((time-x*10+y*5) / 1000.0)) * 127 + 128) as u8;
+
+            imagebuffer[index++] = r;
+            imagebuffer[index++] = g;
+            imagebuffer[index++] = b;
+            imagebuffer[index++] = 255;
+        }
+    }
+}            
+    </textarea>
+    <button id="compileandrunbutton">Compile and run</button>
+    <button id="compileandrunoptimizedbutton">Compile, optimize and run</button>
+    <p>
+        Frame render time: <span id="framerendertime"></span> ms<br />
+        Compile time: <span id="compiletime"></span> ms<br />
+        Wasm size: <span id="wasmsize"></span> bytes<br />
+    </p>
+    <p>
+    <pre><code id="erroroutput"></code></pre>
+    </p>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/assemblyscript@0.27.14/dist/web.js"></script>
+<script type="module">
+    import asc from "assemblyscript/asc";
+    let drawFunction = () => null;
+
+    const canvas = document.getElementById('myCanvas');
+    const ctx = canvas.getContext('2d');
+    const width = 500;
+    const height = 250;
+    canvas.width = width;
+    canvas.height = height;
+
+    const drawLoop = () => {
+        const drawStartTime = new Date().getTime();
+        drawFunction(drawStartTime);
+        document.getElementById('framerendertime').innerHTML = (new Date().getTime() - drawStartTime);
+
+        requestAnimationFrame(() => drawLoop());
+    }
+    drawLoop();
+
+    async function compileAndRun(optimize = false) {
+        drawFunction = () => null;
+
+        const erroroutput = document.getElementById('erroroutput');
+        const output = {};
+        const sources = {
+            "imagegenerator.ts": document.getElementById('codearea').value
+        }
+        erroroutput.innerHTML = '';
+        const compileStartTime = new Date().getTime();
+        const { error, stdout, stderr, stats } = await asc.main([
+            "--runtime", "stub",
+            "--use", "abort=",
+            optimize ? "-Os" : "-O0",
+            "--initialMemory", "100",
+            "imagegenerator.ts",
+            "--outFile", "imagegenerator.wasm",
+        ], {
+            readFile: name => sources.hasOwnProperty(name) ? sources[name] : null,
+            writeFile: (name, contents) => output[name] = contents,
+            listFiles: () => []
+        });
+        if (error) {
+            erroroutput.innerText = stderr.toString();
+        }
+
+        const wasmbinary = output['imagegenerator.wasm'].buffer;
+        const wasmModule = await WebAssembly.instantiate(wasmbinary, {});
+        const { draw, imagebuffer, memory } = wasmModule.instance.exports;
+
+        document.getElementById('compiletime').innerHTML = (new Date().getTime() - compileStartTime);
+        document.getElementById('wasmsize').innerHTML = wasmbinary.byteLength;
+
+        drawFunction = (drawStartTime) => {
+            const imageData = ctx.createImageData(width, height);
+
+            draw(drawStartTime);
+            const wasmBytes = new Uint8Array(memory.buffer, imagebuffer, width * height * 4);
+            imageData.data.set(wasmBytes);
+
+            ctx.putImageData(imageData, 0, 0);
+        }
+    }
+    document.getElementById('compileandrunoptimizedbutton').addEventListener('click', () => compileAndRun(true));
+    document.getElementById('compileandrunbutton').addEventListener('click', () => compileAndRun());
+</script>
+
+</html>

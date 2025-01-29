@@ -1,0 +1,43 @@
+<script type="module">
+    const ASYNCIFY_STATE_ADDR = 0;
+    let asyncResult;
+    let wasm;
+    wasm = (await WebAssembly.instantiate(await fetch('sleep_asyncify.wasm').then(r => r.arrayBuffer()), {
+        env: {
+            js_before: () => console.log('before'),
+            js_after: (result) => console.log('after', result),
+            js_timeout: (duration) => {
+                console.log('js_timeout invoked with duration parameter', duration);
+                if (wasm.asyncify_get_state() === 0) {
+                    console.log('starting timeout');
+                    wasm.asyncify_start_unwind(ASYNCIFY_STATE_ADDR);
+                    asyncResult = new Promise(resolve => setTimeout(() => resolve(54321), duration * 1000));
+                } else if (wasm.asyncify_get_state() === 2) {
+                    console.log('timeout finished');
+                    wasm.asyncify_stop_rewind();
+                    return asyncResult;
+                }
+            }
+        }
+    })).instance.exports;
+
+    const heap32 = new Int32Array(wasm.memory.buffer);
+    heap32[ASYNCIFY_STATE_ADDR >> 2] = ASYNCIFY_STATE_ADDR + 8;
+    heap32[ASYNCIFY_STATE_ADDR + 4 >> 2] = 1024;
+
+    const callAsyncWasm = async (wasmFunctionCall) => {
+        let finalResult;
+
+        while (true) {
+            finalResult = wasmFunctionCall();
+            if (wasm.asyncify_get_state() === 0) {
+                break;
+            }
+            wasm.asyncify_stop_unwind();
+            asyncResult = await asyncResult;
+            wasm.asyncify_start_rewind(ASYNCIFY_STATE_ADDR);
+        }
+    };
+
+    console.log('final result', await callAsyncWasm(() => wasm.sleep(2)));    
+</script>

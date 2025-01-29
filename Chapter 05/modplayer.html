@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+    <input type="file" id="modfileinput">
+</body>
+<script type="module">
+    const modfileinput = document.getElementById('modfileinput');
+    let lastFileInputChangeEvent;
+    modfileinput.addEventListener('change', async (fileInputChangeEvent) => {
+        lastFileInputChangeEvent = fileInputChangeEvent;
+        const file = modfileinput.files[0];
+        const filereader = new FileReader();
+        const modfiledata = await new Promise(resolve => {
+            filereader.onload = e => resolve(new Uint8Array(e.target.result));
+            filereader.readAsArrayBuffer(file);
+        });
+        const NOT_IMPLEMENTED = () => console.error('not implemented');
+
+        const wasmExports = await WebAssembly.instantiateStreaming(fetch('wasm-mod-player.wasm'), {
+            "wasi_snapshot_preview1": {
+                "fd_close": NOT_IMPLEMENTED,
+                "fd_write": NOT_IMPLEMENTED,
+                "fd_seek": NOT_IMPLEMENTED,
+                "fd_read": NOT_IMPLEMENTED,
+                "clock_time_get": NOT_IMPLEMENTED
+            },
+            "env": {
+                "__syscall_getdents64": NOT_IMPLEMENTED,
+                "__syscall_unlinkat": NOT_IMPLEMENTED
+            }
+        }).then(mod => mod.instance.exports);
+
+        const memaddr = wasmExports.allocMemoryForModule(modfiledata.byteLength);
+        const heap8 = new Uint8Array(wasmExports.memory.buffer);
+        const heap32 = new Uint32Array(wasmExports.memory.buffer);
+        const heap16 = new Int16Array(wasmExports.memory.buffer);
+        heap8.set(modfiledata, memaddr);
+
+        const audioCtx = new AudioContext();
+        
+        wasmExports.loadModule(memaddr, modfiledata.byteLength, audioCtx.sampleRate);
+
+        let startTime = audioCtx.currentTime + 0.5;
+        const playFragment = () => {
+            const frameinfo = wasmExports.playFrame();
+            const bufptr = heap32[(frameinfo / 4) + 10] / 2;
+            const bufsize = heap32[(frameinfo / 4) + 11] / 2;
+
+            const audiodata = heap16.subarray(bufptr, bufptr + bufsize);
+
+            const durationFrames = bufsize / 2;
+            const leftBuffer = new Float32Array(durationFrames);
+            const rightBuffer = new Float32Array(durationFrames);
+
+            const pow2_15 = Math.pow(2, 15);
+
+            for (let n=0;n<audiodata.length;n+=2) {
+                const bufIndex = n / 2;
+                leftBuffer[bufIndex] = audiodata[n] / pow2_15;
+                rightBuffer[bufIndex] = audiodata[n+1] / pow2_15;
+            }
+
+            const audioBuf = audioCtx.createBuffer(2, durationFrames, audioCtx.sampleRate);
+            audioBuf.getChannelData(0).set(leftBuffer);
+            audioBuf.getChannelData(1).set(rightBuffer);
+            const audioBufSrcNode = audioCtx.createBufferSource();
+            audioBufSrcNode.buffer = audioBuf;
+            audioBufSrcNode.connect(audioCtx.destination);
+            audioBufSrcNode.loop = false;
+            audioBufSrcNode.start(startTime);            
+            const durationSeconds = durationFrames / audioCtx.sampleRate;
+            startTime += durationSeconds;
+            return durationSeconds;
+        };
+        while ( lastFileInputChangeEvent == fileInputChangeEvent ) {
+            const fragmentDurationSeconds = playFragment();
+            await new Promise(resolve => setTimeout(() => resolve(), fragmentDurationSeconds * 1000 * 0.5));
+        }
+        audioCtx.close();
+    })
+</script>
+</html>

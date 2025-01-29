@@ -1,0 +1,9 @@
+package my:demo;
+
+interface adder {
+  add: func(a: s32, b: s32) -> s32;
+}
+
+world demo {
+    export adder;
+}

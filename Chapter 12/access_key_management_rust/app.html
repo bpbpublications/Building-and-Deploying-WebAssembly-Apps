@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <div>
+        <button id="signin_button">Sign in</button>
+        <button id="signout_button">Sign out <span id="signedin_account_span"></span></button>
+        <button id="generate_token_button">Generate token</button>
+        <button id="register_token_button">Register token</button>
+        <button id="call_offchain_api_button">Call off-chain API</button>
+    </div>
+    <h3>Result</h3>
+    <pre><code id="resultarea"></code></pre>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/near-api-js@3.0.4/dist/near-api-js.min.js"></script>
+<script type="module">
+    const contractId = 'youraccount.testnet';
+    const near = await nearApi.connect({
+        networkId: 'testnet',
+        keyStore: new nearApi.keyStores.BrowserLocalStorageKeyStore(),
+        contractId,
+        nodeUrl: 'https://rpc.testnet.near.org',
+        walletUrl: 'https://testnet.mynearwallet.com/'
+    });
+
+    const walletConnection = new nearApi.WalletConnection(near, 'my-app');
+    const signInButton = document.getElementById('signin_button');
+    const signoutButton = document.getElementById('signout_button');
+    const signedInAccountSpan = document.getElementById('signedin_account_span');
+    const generateTokenButton = document.getElementById('generate_token_button');
+    const registerTokenButton = document.getElementById('register_token_button');
+    const callOffchainAPIButton = document.getElementById('call_offchain_api_button');
+    const resultArea = document.getElementById('resultarea');
+
+    if (await walletConnection.isSignedInAsync()) {
+        signInButton.style.display = 'none';
+        signoutButton.style.display = 'block';
+        signedInAccountSpan.innerHTML = walletConnection.getAccountId();
+    } else {
+        signInButton.style.display = 'block';
+        signoutButton.style.display = 'none';
+    }
+
+    signInButton.addEventListener('click', async () => {
+        await walletConnection.requestSignIn({ contractId });
+    });
+    signoutButton.addEventListener('click', async () => {
+        await walletConnection.signOut();
+        signInButton.style.display = 'block';
+        signoutButton.style.display = 'none';
+    });
+
+    const resource_id = 'mytestresource';
+    let token_bytes;
+
+    generateTokenButton.addEventListener('click', async () => {
+        const token_uuid = crypto.randomUUID();
+        const token_string = JSON.stringify({ resource_id, token_uuid });
+        token_bytes = new TextEncoder().encode(token_string);
+        resultArea.innerText = token_string;
+    });
+
+    registerTokenButton.addEventListener('click', async () => {
+        registerTokenButton.disabled = true;
+        try {
+            resultArea.innerText = 'Please wait while registering token';
+            const signature = Array.from((await near.connection.signer.signMessage(token_bytes, walletConnection.getAccountId(), 'testnet')).signature);
+            const token_hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", token_bytes)));
+
+            const contract = new nearApi.Contract(walletConnection.account(), contractId, {
+                changeMethods: ['register_token']
+            });
+
+            const result = await contract.register_token({ token_hash, signature });
+            resultArea.innerText = JSON.stringify(result, null, 1);
+        } catch (e) {
+            resultArea.innerText = e.toString();
+        }
+        registerTokenButton.disabled = false;
+    });
+
+    callOffchainAPIButton.addEventListener('click', async () => {
+        const token_bytes_base64 = btoa(Array.from(token_bytes, (byte) =>
+            String.fromCodePoint(byte),
+        ).join(""));
+        resultArea.innerText = await fetch('/api', { headers: { Authorization: `Bearer ${token_bytes_base64}` } }).then(r => r.text());
+    });
+</script>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+    <input type="file" id="modfileinput">
+</body>
+<script type="module">
+    const modfileinput = document.getElementById('modfileinput');
+    let modplayer;
+    modfileinput.addEventListener('change', async (fileInputChangeEvent) => {
+        if (modplayer) {
+            try {
+                modplayer.abort();
+            } catch(e) {}
+        }
+        const file = modfileinput.files[0];
+        const filereader = new FileReader();
+        const modfiledata = await new Promise(resolve => {
+            filereader.onload = e => resolve(new Uint8Array(e.target.result));
+            filereader.readAsArrayBuffer(file);
+        });
+
+        const jsmodule = await import(new URL('modplayer2.mjs', import.meta.url));
+        modplayer = await jsmodule.default({noInitialRun: true});
+        modplayer.FS.writeFile(file.name, modfiledata);
+        modplayer.callMain( [file.name]);
+    })
+</script>
+</html>

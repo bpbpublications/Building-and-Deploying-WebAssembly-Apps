@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <h3>Frequency</h3>
+    <input id="frequencyinput" type="range" min="0" max="1000" value="50" style="width: 100%" />
+    <h3>Function for calculating sample value</h3>
+    <input id="samplefunction" value="(angle % 1.0) - 0.5" style="width: 100%">
+    <button id="compileandrunbutton">Compile and run</button>
+    <p>
+        <pre><code id="erroroutput"></code></pre>
+    </p>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/assemblyscript@0.27.14/dist/web.js"></script>
+<script type="module">
+    import asc from "assemblyscript/asc";
+    let ctx;
+    let audioWorkletNode;
+
+    const frequency = () => parseFloat(document.getElementById('frequencyinput').value);
+
+    const compileWasm = async () => {
+        const erroroutput = document.getElementById('erroroutput');
+        const output = {};
+        const sources = {
+            "tonegenerator.ts": `
+const SAMPLE_BUFFER_START = 1024;
+const SAMPLE_BUFFER_END = 1024 + 128 * 4;
+
+const SAMPLERATE: f32 = 44100;
+let step: f32;
+let angle: f32 = 0;
+
+export function setFrequency(frequency: f32): void {
+    step = frequency / SAMPLERATE;
+}
+
+export function fillSampleBuffer(): void {
+    for (let n=SAMPLE_BUFFER_START;n<SAMPLE_BUFFER_END;n+=4) {
+        angle += step;
+        const samplevalue = ${document.getElementById('samplefunction').value};
+        store<f32>(n, samplevalue);
+    }
+}
+`
+        }
+        erroroutput.innerHTML = '';
+        const { error, stdout, stderr, stats } = await asc.main([
+            "--runtime", "stub",
+            "--use", "abort=",
+            "--initialMemory", "1",
+            "tonegenerator.ts",
+
+            "--outFile", "tonegenerator.wasm",
+        ], {
+            readFile: name => sources.hasOwnProperty(name) ? sources[name] : null,
+            writeFile: (name, contents) => output[name] = contents,
+            listFiles: () => []
+        });
+        if (error) {
+            erroroutput.innerText = stderr.toString();
+        }
+        const wasmbinary = output['tonegenerator.wasm'].buffer;
+        audioWorkletNode.port.postMessage({ wasmbinary, frequency: frequency() }, [wasmbinary]);
+    };
+    document.getElementById('frequencyinput').addEventListener('input', async () => {
+        if (audioWorkletNode) {
+            audioWorkletNode.port.postMessage({ frequency: frequency() });
+        }
+    });
+    document.getElementById('compileandrunbutton').addEventListener('click', async () => {
+        if (!ctx) {
+            ctx = new AudioContext();
+            await ctx.resume();
+            await ctx.audioWorklet.addModule(new URL('tonegenerator.processor.js', import.meta.url));
+            audioWorkletNode = new AudioWorkletNode(ctx, 'tone-generator-processor');
+            audioWorkletNode.connect(ctx.destination);
+        }
+        await compileWasm();
+    });
+</script>
+</html>

@@ -1,0 +1,16 @@
+[package]
+name = "quickjs-rust"
+version = "0.1.0"
+authors = ["Peter Salomonsen <contact@petersalomonsen.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ed25519-dalek = "2.1.0"
+
+[profile.release]
+lto=true
+strip="symbols"
+debug=false

@@ -1,0 +1,16 @@
+[package]
+name = "visitor_rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+near-sdk = "5.0.0"
+
+[profile.release]
+lto = true
+opt-level = 'z'
+debug = false
+strip = 'symbols'

@@ -1,0 +1,30 @@
+apiVersion: core.spinoperator.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: imageclassify
+spec:
+  image: "ghcr.io/petersalomonsen/imageclassify:0.0.1"
+  executor: containerd-shim-spin
+  enableAutoscaling: true
+---
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
+metadata:
+    name: imageclassify
+spec:
+    hosts:
+    - myhost.com
+    pathPrefixes:
+    - /imageclassify
+    scaleTargetRef:
+        name: imageclassify
+        kind: Deployment
+        apiVersion: apps/v1
+        service: imageclassify
+        port: 80
+    scaledownPeriod: 5
+    replicas:
+        min: 0
+        max: 1
+      
+

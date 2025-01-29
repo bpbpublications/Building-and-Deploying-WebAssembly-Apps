@@ -1,0 +1,9 @@
+*.out.js
+*.cjs
+*.wasm
+helloworld.html
+helloworld.js
+modplayer2.mjs
+jscallback.html
+jscallback.js
+jscallback.mjs

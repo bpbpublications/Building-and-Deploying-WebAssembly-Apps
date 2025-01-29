@@ -1,0 +1,22 @@
+<script type="module">
+const wasm = await WebAssembly.instantiate(await fetch('token_signer.wasm').then(r => r.arrayBuffer()), {});
+const mod = wasm.instance.exports;
+
+const message = 'hello';
+const msg_ptr = mod.allocate_message(message.length);
+const message_buffer = new Uint8Array(mod.memory.buffer, msg_ptr, message.length);
+message_buffer.set(new TextEncoder('utf-8').encode(message));
+
+const signing_key_buffer = new Uint8Array(mod.memory.buffer, mod.get_signing_key_ptr(), 64);
+signing_key_buffer.set(new Uint8Array([
+    254, 114, 130, 212, 33, 69, 193, 93, 12, 15, 108, 76, 19, 198, 118, 148, 193, 62, 78,
+    4, 9, 157, 188, 191, 132, 137, 188, 31, 54, 103, 246, 191, 62, 57, 59, 247, 76, 246,
+    60, 248, 227, 133, 30, 160, 254, 106, 146, 229, 101, 149, 245, 6, 148, 125, 124, 102,
+    49, 14, 108, 234, 201, 122, 62, 159,
+]));
+mod.sign();
+
+const signature_buffer = new Uint8Array(mod.memory.buffer, mod.get_signature_ptr(), 64);
+
+console.log(signature_buffer);
+</script>

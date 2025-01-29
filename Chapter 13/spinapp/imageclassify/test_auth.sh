@@ -1,0 +1,1 @@
+curl -X POST -H "Content-Type: application/octet-stream" -H "Authorization: Bearer eyJyZXNvdXJjZV9pZCI6Im15dGVzdHJlc291cmNlIiwidG9rZW5fdXVpZCI6ImRiNDM3MTc5LTU3OGYtNDhhMi04ODQwLTc1N2JhOTM2ODdmMCJ9" --data-binary @lawn.jpg http://localhost:3000/imageclassify

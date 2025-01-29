@@ -1,0 +1,11 @@
+<html>
+    <body>
+    </body>
+    <script src="asyncify.js"></script>
+    <script type="module">
+        Module.onRuntimeInitialized = () => {
+            globalThis.js_timeout = async (duration) => await new Promise(resolve => setTimeout(() => resolve(54321), duration*1000));
+            Module._wasm_sleep(5);
+        };
+    </script>
+</html>

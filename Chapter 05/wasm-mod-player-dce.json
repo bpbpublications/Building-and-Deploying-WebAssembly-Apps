@@ -1,0 +1,22 @@
+[
+    {
+        "name": "allocMemoryForModule",
+        "export": "allocMemoryForModule",
+        "root": true
+    },
+    {
+        "name": "loadModule",
+        "export": "loadModule",
+        "root": true
+    },
+    {
+        "name": "playFrame",
+        "export": "playFrame",
+        "root": true
+    },
+    {
+        "name": "memory",
+        "export": "memory",
+        "root": true
+    }
+]

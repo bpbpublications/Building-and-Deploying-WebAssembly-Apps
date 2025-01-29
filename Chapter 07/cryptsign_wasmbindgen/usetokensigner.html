@@ -1,0 +1,19 @@
+<script type="module">
+import init, { sign_message } from './pkg/token_signer.js';
+
+await init();
+
+const message = new TextEncoder().encode('hello');
+const secretKey = new Uint8Array([
+    254, 114, 130, 212, 33, 69, 193, 93, 12, 15, 108, 76, 19, 198, 118, 148, 193, 62, 78,
+    4, 9, 157, 188, 191, 132, 137, 188, 31, 54, 103, 246, 191, 62, 57, 59, 247, 76, 246,
+    60, 248, 227, 133, 30, 160, 254, 106, 146, 229, 101, 149, 245, 6, 148, 125, 124, 102,
+    49, 14, 108, 234, 201, 122, 62, 159,
+]);
+try {
+    const signature = sign_message(message, secretKey);
+    console.log('Signature:', signature);
+} catch (e) {
+    console.error('Error:', e);
+}
+</script>

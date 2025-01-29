@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+    <input id="frequencyinput" type="range" min="0" max="1000" value="50" style="width: 100%" />
+</body>
+<script type="module">
+    let ctx;
+    let audioWorkletNode;
+    document.getElementById('frequencyinput').addEventListener('input', async (evt) => {
+        const frequency = parseFloat(evt.target.value);
+        if (!ctx) {
+            ctx = new AudioContext();
+            await ctx.resume();
+            await ctx.audioWorklet.addModule(new URL('tonegenerator.processor.js', import.meta.url));
+            audioWorkletNode = new AudioWorkletNode(ctx, 'tone-generator-processor');
+            audioWorkletNode.connect(ctx.destination);
+            const wasmbinary = await fetch(new URL('tonegenerator.wasm', import.meta.url)).then(r => r.arrayBuffer());
+            audioWorkletNode.port.postMessage({ wasmbinary, frequency }, [wasmbinary]);
+        }
+        if (audioWorkletNode) {
+            audioWorkletNode.port.postMessage({ frequency });
+        }
+    });
+</script>
+
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+    </head>
+    <body>
+        <h1>Write and run your own javascript</h1>
+        <p>The script must return a string</p>
+        <textarea id="scriptarea" style="width: 100%; height: 200px;">let obj = { created: new Date().toJSON(), randomNumber: parseInt(Math.random() * 100), name: 'Peter' };
+let message = `This script was executed on ${new Date(obj.created)} for ${obj.name} with the random number ${obj.randomNumber}`;
+obj.message = message;
+let signatureBuffer = signMessage(message, new Uint8Array([
+    254, 114, 130, 212, 33, 69, 193, 93, 12, 15, 108, 76, 19, 198, 118, 148, 193, 62, 78,
+    4, 9, 157, 188, 191, 132, 137, 188, 31, 54, 103, 246, 191, 62, 57, 59, 247, 76, 246,
+    60, 248, 227, 133, 30, 160, 254, 106, 146, 229, 101, 149, 245, 6, 148, 125, 124, 102,
+    49, 14, 108, 234, 201, 122, 62, 159,
+]).buffer);
+obj.signature = [...new Uint8Array(signatureBuffer)];
+JSON.stringify(obj, null, 1);
+</textarea>
+        <button id="runbutton">Run</button>
+        <pre style="max-width: 100%;"><code id="resultarea"></code></pre>
+        <script type="module">            
+            document.getElementById('runbutton').addEventListener('click', async () => {
+                const mod = (await WebAssembly.instantiate(await fetch('quickjs_rust.wasm').then(r => r.arrayBuffer()), {
+                    wasi_snapshot_preview1: {
+                        clock_time_get: (clockId, precision, resultPointer) => {
+                            const timeInNanoseconds = Date.now() * 1000000;
+                        
+                            const memory = new DataView(mod.memory.buffer);
+                            memory.setBigUint64(resultPointer, BigInt(timeInNanoseconds), true);
+                        
+                            return 0;
+                        },
+                        fd_prestat_dir_name: () => null,
+                        fd_prestat_get: () => null,
+                        fd_fdstat_get: () => null,
+                        fd_close: () => null,
+                        proc_exit: () => null,
+                        environ_sizes_get: () => null,
+                        environ_get: () => null,
+                        fd_write: () => null,
+                        fd_seek: () => null,
+                    }
+                })).instance.exports;
+                mod.init();
+
+                const script = document.getElementById('scriptarea').value;            
+                const ptr = mod.allocate_script(script.length);
+                let membuffer = new Uint8Array(mod.memory.buffer);
+                membuffer.set(new TextEncoder().encode(script), ptr);
+                const resultptr = mod.run_js();
+                membuffer = new Uint8Array(mod.memory.buffer);
+                const result = new TextDecoder().decode(membuffer.slice(resultptr, membuffer.indexOf(0, resultptr)));
+
+                document.getElementById('resultarea').innerText = result;
+            });            
+        </script>
+    </body>
+</html>

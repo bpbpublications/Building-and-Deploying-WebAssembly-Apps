@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: musicandmul
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: musicandmul
+  template:
+    metadata:
+      labels:
+        app: musicandmul
+    spec:
+      runtimeClassName: wasmtime-spin-v2
+      containers:
+        - name: musicandmul
+          image: ghcr.io/petersalomonsen/music
+          command: ["/"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: musicandmul
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  selector:
+    app: musicandmul
+---
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
+metadata:
+    name: musicandmul
+spec:
+    hosts:
+    - myhost.com
+    pathPrefixes:
+    - /mul
+    - /music
+    scaleTargetRef:
+        name: musicandmul
+        kind: Deployment
+        apiVersion: apps/v1
+        service: musicandmul
+        port: 80
+    scaledownPeriod: 5
+    replicas:
+        min: 0
+        max: 1

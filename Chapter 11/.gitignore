@@ -1,0 +1,3 @@
+wasi-cli-*
+*.wasm
+*.tar.gz

@@ -1,0 +1,33 @@
+(component
+  (core module (;0;)
+    (type (;0;) (func (result i32)))
+    (func $run (;0;) (type 0) (result i32)
+      i32.const 0
+    )
+    (export "wasi:cli/run@0.2.0#run" (func $run))
+    (@producers
+      (processed-by "wit-component" "0.200.0")
+    )
+  )
+  (core instance (;0;) (instantiate 0))
+  (type (;0;) (result))
+  (type (;1;) (func (result 0)))
+  (alias core export 0 "wasi:cli/run@0.2.0#run" (core func (;0;)))
+  (func (;0;) (type 1) (canon lift (core func 0)))
+  (component (;0;)
+    (type (;0;) (result))
+    (type (;1;) (func (result 0)))
+    (import "import-func-run" (func (;0;) (type 1)))
+    (type (;2;) (result))
+    (type (;3;) (func (result 2)))
+    (export (;1;) "run" (func 0) (func (type 3)))
+  )
+  (instance (;0;) (instantiate 0
+      (with "import-func-run" (func 0))
+    )
+  )
+  (export (;1;) "wasi:cli/run@0.2.0" (instance 0))
+  (@producers
+    (processed-by "wit-component" "0.200.0")
+  )
+)

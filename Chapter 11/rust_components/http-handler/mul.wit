@@ -1,0 +1,13 @@
+package example:multiply;
+
+interface multiplier {
+  mul: func(a: s32, b: s32) -> s32;
+}
+
+world multiplierexports {
+  export multiplier;
+}
+
+world multiplierimports {
+  import multiplier;
+}

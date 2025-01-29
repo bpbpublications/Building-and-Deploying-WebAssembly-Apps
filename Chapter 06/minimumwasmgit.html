@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        #svgviewarea {
+            width: 500px;
+            max-width: 100%;
+            height: 500px;
+            border: black solid 1px;
+        }
+        #consolearea {
+            width: 100%;
+            height: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <input type="text" id="user.email" placeholder="email" />
+    <input type="text" id="user.name" placeholder="name" />
+    <input type="text" id="commit.message" placeholder="message" />
+    <button id="publishbutton">Publish</button>
+    <input type="text" id="color_input" style="width: 50px;position: absolute; display: none; z-index: 1000;" />
+    <div id="svgviewarea">
+
+    </div>
+    <textarea id="consolearea"></textarea>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
+<script>
+    const consolearea = document.getElementById('consolearea');
+    Module = {
+        locateFile: function (s) {
+            return 'https://cdn.jsdelivr.net/npm/wasm-git@0.0.12/' + s;
+        },
+        print: function(msg) {
+            console.log(msg);
+            consolearea.value += (msg+'\n');
+        },
+        printErr: function(msg) {
+            console.error(msg);
+            consolearea.value += (msg+'\n');
+        }
+    };
+    XMLHttpRequest.prototype._open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url, async, user, password) {
+        this._open(method, url, async, user, password);
+        this.setRequestHeader('Authorization', `Bearer ${globalThis.accesstoken}`);
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/wasm-git@0.0.12/lg2_async.js"></script>
+<script type="module">
+    await new Promise(resolve => globalThis.Module.onRuntimeInitialized = () => resolve());
+    const FS = Module.FS;
+
+    FS.mkdir('/pixeldrawingworkdir');
+    FS.mount(FS.filesystems.IDBFS, {}, '/pixeldrawingworkdir');
+    await new Promise(resolve => FS.syncfs(true, () => resolve()));
+    FS.chdir('/pixeldrawingworkdir');
+
+    const privateKey = new Uint8Array([254, 114, 130, 212, 33, 69, 193, 93, 12, 15, 108, 76, 19, 198, 118, 148, 193, 62, 78, 4, 9, 157, 188, 191, 132, 137, 188, 31, 54, 103, 246, 191, 62, 57, 59, 247, 76, 246, 60, 248, 227, 133, 30, 160, 254, 106, 146, 229, 101, 149, 245, 6, 148, 125, 124, 102, 49, 14, 108, 234, 201, 122, 62, 159]);
+    const tokenMessage = btoa(JSON.stringify({ accountId: '3e393bf74cf63cf8e3851ea0fe6a92e56595f506947d7c66310e6ceac97a3e9f', iat: new Date().getTime() }));
+    const signature = nacl.sign.detached(new TextEncoder().encode(tokenMessage), privateKey);
+    globalThis.accesstoken = tokenMessage + '.' + btoa(String.fromCharCode(...signature));
+
+    if (FS.readdir('.').indexOf('pixeldrawing') == -1) {
+        await Module.callMain(['clone', 'https://wasm-git.petersalomonsen.com/pixeldrawing', 'pixeldrawing']);
+        FS.chdir('pixeldrawing');
+    } else {
+        FS.chdir('pixeldrawing');
+        await Module.callMain(['fetch', 'origin']);
+        Module.callMain(['merge', 'origin/master']);
+    }
+
+    const writeToIndexedDB = async () => await new Promise(resolve => FS.syncfs(false, () => resolve()));
+    await writeToIndexedDB();
+
+    let colors_array;
+    try {
+        colors_array = JSON.parse(FS.readFile('drawing.json', { encoding: 'utf8' }));
+    } catch (e) {
+        console.log(e);
+        colors_array = new Array(81).fill('#000');
+    }
+    const WIDTH = 9;
+    const HEIGHT = 9;
+    const svgstring = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}">
+                            ${colors_array.map((color, ndx) => `<rect x="${ndx % WIDTH}" y="${Math.floor(ndx / WIDTH)}" width="1" height="1" fill="${color}"/>`)}
+                        </svg>`;
+    const color_input = document.getElementById('color_input');
+    const svgviewarea = document.getElementById('svgviewarea');
+    svgviewarea.innerHTML = svgstring;
+    Array.from(document.querySelectorAll('#svgviewarea svg rect'))
+        .forEach((rect, ndx) => {
+            rect.addEventListener('click', (e) => {
+                color_input.style.top = `${e.clientY}px`;
+                color_input.style.left = `${e.clientX}px`;
+                color_input.value = rect.attributes.fill.value;
+                color_input.style.display = 'block';
+                color_input.onblur = async () => {
+                    rect.attributes.fill.value = color_input.value;
+                    colors_array[ndx] = color_input.value;
+                    color_input.style.display = 'none';
+                    FS.writeFile('drawing.json', JSON.stringify(colors_array, null, 1));
+                    await writeToIndexedDB();
+                }
+            });
+        }
+        );
+    const publishbutton = document.getElementById('publishbutton');
+    publishbutton.addEventListener('click', async () => {
+        publishbutton.disabled = true;
+        Module.callMain(['config', 'user.name', document.getElementById('user.name').value]);
+        Module.callMain(['config', 'user.email', document.getElementById('user.email').value]);
+        Module.callMain(['add', 'drawing.json']);
+        Module.callMain(['commit', '-m', document.getElementById('commit.message').value]);
+        Module.print('pushing');
+        await Module.callMain(['push']);
+        await writeToIndexedDB();
+        publishbutton.disabled = false;
+    });
+</script>
+<script type="module">
+    await navigator.serviceWorker.register('serviceworker.js', { scope: './' });
+</script>
+</html>

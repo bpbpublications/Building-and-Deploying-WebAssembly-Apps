@@ -1,0 +1,29 @@
+<script type="module">
+
+    const mod = (await WebAssembly.instantiate(await fetch('sleep_jspi.wasm').then(r => r.arrayBuffer()), {
+        env: {
+            js_before: () => console.log('before'),
+            js_after: (result) => console.log('after', result),
+            js_timeout: new WebAssembly.Function(
+                { parameters: ['externref', 'i32'], results: ['i32'] },
+                async duration => {
+                    console.log('timeout', duration);
+                    const startTime = new Date().getTime();
+                    await new Promise(resolve => setTimeout(() => resolve(), duration));
+                    const result = (new Date().getTime() - startTime);
+                    console.log('actual duration (result)', result);
+                    return result;
+                },
+                { suspending: "first" }
+            )
+        }
+    }));
+    const sleep = new WebAssembly.Function(
+        { parameters: ['i32'], results: ['externref'] },
+        mod.instance.exports.sleep,
+        { promising: "first" }
+    );
+    console.log('before calling wasm sleep from js');
+    await sleep(1000);
+    console.log('after calling wasm sleep from js');
+</script>

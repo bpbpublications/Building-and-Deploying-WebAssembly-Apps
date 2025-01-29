@@ -1,0 +1,37 @@
+<script type="module">
+const mod = (await WebAssembly.instantiate(await fetch('jseval.wasm').then(r => r.arrayBuffer()), {
+    env: {
+        js_sleep: async (duration, resolving_func) => {
+            console.log('sleep', duration);
+            const startTime = new Date().getTime();
+            await new Promise(resolve => setTimeout(() => resolve(), duration));
+            const result = (new Date().getTime()-startTime);
+            console.log('actual duration (result)', result);
+            mod.sleep_callback(resolving_func, result);
+        },
+        js_value_return: (result) => {
+            console.log('value_return', result);
+        }
+    },
+    wasi_snapshot_preview1: {
+        clock_time_get: () => null,
+        fd_close: () => null,
+        proc_exit: () => null,
+        environ_sizes_get: () => null,
+        environ_get: () => null,
+        fd_write: () => null,
+        fd_seek: () => null,
+    }
+})).instance.exports;
+
+const script = `
+const sleep_result = await sleep(2000);
+value_return(sleep_result);
+`;
+const ptr = mod.malloc(script.length);
+const membuffer = new Uint8Array(mod.memory.buffer);
+membuffer.set(new TextEncoder().encode(script), ptr);
+
+mod.js_eval_async_module(ptr);
+
+</script>

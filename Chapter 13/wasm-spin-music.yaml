@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wasm-music
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wasm-music
+  template:
+    metadata:
+      labels:
+        app: wasm-music
+    spec:
+      runtimeClassName: wasmtime-spin
+      containers:
+        - name: wasm-music
+          image: ghcr.io/petersalomonsen/music:latest
+          command: ["/"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wasm-music
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  selector:
+    app: wasm-music

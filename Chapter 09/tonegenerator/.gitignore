@@ -1,0 +1,7 @@
+*.c
+*.h
+!main.c
+*.wav
+tonegenerator
+!wavheader.h
+tonegenerator.wasm

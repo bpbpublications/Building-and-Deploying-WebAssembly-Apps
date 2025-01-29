@@ -1,0 +1,24 @@
+[package]
+name = "add"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+wit-bindgen = { version = "0.20.0", default-features = false, features = ["realloc"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.component]
+package = "component:add"
+
+[package.metadata.component.target.dependencies]
+"wasi:cli" = { path = "wit/deps/wasi-cli-0.2.0/wit" }
+"wasi:io" = { path = "wit/deps/wasi-cli-0.2.0/wit/deps/io" }
+"wasi:clocks" = { path = "wit/deps/wasi-cli-0.2.0/wit/deps/clocks" }
+"wasi:filesystem" = { path = "wit/deps/wasi-cli-0.2.0/wit/deps/filesystem" }
+"wasi:sockets" = { path = "wit/deps/wasi-cli-0.2.0/wit/deps/sockets" }
+"wasi:random" = { path = "wit/deps/wasi-cli-0.2.0/wit/deps/random" }
+"my:mul" = { path = "coremod" }

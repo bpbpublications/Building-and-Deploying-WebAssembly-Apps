@@ -1,0 +1,22 @@
+[ 
+    { 
+      "name": "memory", 
+      "export": "memory",
+      "root": true
+    },
+    { 
+      "name": "allocate_script", 
+      "export": "allocate_script",
+      "root": true
+    },
+    { 
+      "name": "run_js", 
+      "export": "run_js",
+      "root": true
+    },
+    { 
+      "name": "init", 
+      "export": "init",
+      "root": true
+    }
+]

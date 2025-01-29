@@ -1,0 +1,21 @@
+spin_manifest_version = 2
+
+[application]
+name = "imageclassify"
+version = "0.1.0"
+authors = ["Peter Salomonsen <pjsalomonsen@gmail.com>"]
+description = "imageclassify web component"
+
+[[trigger.http]]
+route = "/imageclassify"
+component = "imageclassify"
+
+[component.imageclassify]
+source = "target/wasm32-wasi/release/imageclassify.wasm"
+allowed_outbound_hosts = ["https://rpc.testnet.near.org"]
+files = [ { source = "static/", destination = "/" } ]
+
+[component.imageclassify.build]
+command = "cargo build --target wasm32-wasi --release"
+watch = ["src/**/*.rs", "Cargo.toml"]
+

@@ -1,0 +1,5 @@
+JUCE*
+build
+WasmEdge-*
+0.13.5.tar.gz
+libwasmedge.a

@@ -1,0 +1,6 @@
+*.o
+*.wasm
+*.a
+*.tar.gz
+JUCE*
+build

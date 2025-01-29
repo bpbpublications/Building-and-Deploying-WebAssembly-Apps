@@ -1,0 +1,16 @@
+[package]
+name = "access_key_management_rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+near-sdk = {version = "5.0.0", features = ["unit-testing"]}
+
+[profile.release]
+lto = true
+opt-level = 'z'
+debug = false
+strip = 'symbols'

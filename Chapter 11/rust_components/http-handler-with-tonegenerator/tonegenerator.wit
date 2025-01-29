@@ -1,0 +1,14 @@
+package example:tonegenerator;
+
+interface tonegeneratorsynth {
+  setnote: func(notenumber: f32);
+  nextsample: func() -> f32;
+}
+
+world tonegeneratorexports {
+    export tonegeneratorsynth;
+}
+
+world tonegeneratorimports {
+    import tonegeneratorsynth;
+}
